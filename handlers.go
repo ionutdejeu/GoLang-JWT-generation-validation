@@ -85,6 +85,39 @@ func signInHandler(w http.ResponseWriter, r *http.Request) {
 }
 func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Welcome handler")
+	c, er := r.Cookie("token")
+	if er != nil {
+		if er == http.ErrNoCookie {
+			// unauthorized
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	cookieValue := c.Value
+	cl := &claims{}
+
+	// parse the jwt string
+	tkn, err := jwt.ParseWithClaims(cookieValue, cl, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+
+	if err != nil {
+		if err == jwt.ErrSignatureInvalid {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if !tkn.Valid {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf("Successfull login %s!", cl.Username)))
 }
 func refreshHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Refres handler")
